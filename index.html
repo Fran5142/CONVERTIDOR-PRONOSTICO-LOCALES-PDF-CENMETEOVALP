@@ -83,7 +83,7 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #00
   opacity: 0.9;
 }
 
-/* --- FORMATO HOJA CARTA PDF (AJUSTADO A 11pt) --- */
+/* --- FORMATO HOJA CARTA PDF --- */
 #vistaPrevia {
   width: 215.9mm; 
   min-height: 279.4mm; 
@@ -92,7 +92,7 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #00
   margin: 30px auto; 
   padding: 10mm 20mm; 
   font-family: Arial, sans-serif; 
-  font-size: 9.5pt; /* CAMBIO A TAMAÑO 11 */
+  font-size: 9.5pt; 
   line-height: 1.2;
   position: relative; 
   box-sizing: border-box;
@@ -128,7 +128,7 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #00
   grid-template-columns: 250px 6px auto; 
   font-weight: bold;
   line-height: 1.3;
-  font-size: 9.5pt; /* TEMPERATURAS A TAMAÑO 11 */
+  font-size: 9.5pt;
 }
 
 .espacio-arriba { margin-top: 15px; display: block; }
@@ -181,7 +181,6 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #00
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
-// Función para escribir el nombre automáticamente al hacer clic
 function setNombre(nombre) {
     document.getElementById('nombreArchivo').value = nombre;
 }
@@ -195,11 +194,18 @@ function normalizarTextoBase(texto) {
         .normalize("NFC");
 }
 
+function resaltarPalabrasClave(texto) {
+    // Busca (MAL TIEMPO) o (TEMPORAL) y les pone negrita
+    return texto.replace(/\(MAL TIEMPO\)/g, "<strong>(MAL TIEMPO)</strong>")
+                .replace(/\(TEMPORAL\)/g, "<strong>(TEMPORAL)</strong>");
+}
+
 function generarVista() {
-    let texto = document.getElementById("textoInforme").value.trim();
-    if (!texto) return;
+    let textoRaw = document.getElementById("textoInforme").value.trim();
+    if (!textoRaw) return;
     
-    texto = normalizarTextoBase(texto);
+    // Primero normalizamos a mayúsculas
+    let texto = normalizarTextoBase(textoRaw);
     let lineas = texto.split("\n").map(l => l.trim()).filter(l => l !== "");
     
     const urlLogo = "https://archive.org/download/logo_dorado_40kb/logo_dorado_40kb.png";
@@ -219,18 +225,21 @@ function generarVista() {
     `;
 
     lineas.forEach((linea, index) => {
+        // Aplicamos el resaltado de palabras clave a cada línea
+        let lineaProcesada = resaltarPalabrasClave(linea);
+
         if (index < 2) {
-            htmlContent += `<div class="titulo-principal">${linea}</div>`;
+            htmlContent += `<div class="titulo-principal">${lineaProcesada}</div>`;
             if (index === 1) htmlContent += `<span class="espacio-arriba"></span>`; 
         }
         else if (/^(SABADO|DOMINGO|LUNES|MARTES|MIERCOLES|JUEVES|VIERNES)\s+\d+/i.test(linea)) {
-            htmlContent += `<span class="espacio-arriba"></span><div class="negrita">${linea}</div>`;
+            htmlContent += `<span class="espacio-arriba"></span><div class="negrita">${lineaProcesada}</div>`;
         }
         else if (linea.startsWith("SITUACION SINOPTICA:")) {
-            htmlContent += `<div class="seccion-titulo">${linea}</div>`;
+            htmlContent += `<div class="seccion-titulo">${lineaProcesada}</div>`;
         }
         else if (linea.startsWith("PRONOSTICO:")) {
-            htmlContent += `<span class="espacio-arriba"></span><div class="seccion-titulo">${linea}</div>`;
+            htmlContent += `<span class="espacio-arriba"></span><div class="seccion-titulo">${lineaProcesada}</div>`;
         }
         else if (linea.includes("TEMPERATURA MINIMA PROBABLE") || 
                  linea.includes("TEMPERATURA MAXIMA PROBABLE") || 
@@ -243,16 +252,16 @@ function generarVista() {
             let partes = linea.split(':');
             htmlContent += `
                 <div class="contenedor-temp">
-                    <div>${partes[0].trim()}</div>
+                    <div>${resaltarPalabrasClave(partes[0].trim())}</div>
                     <div>:</div>
-                    <div>${partes[1] ? partes[1].trim() : ""}</div>
+                    <div>${partes[1] ? resaltarPalabrasClave(partes[1].trim()) : ""}</div>
                 </div>`;
         }
         else if (linea.startsWith("PRONOSTICO VALIDO") || /^MET\w{5}/.test(linea)) {
-            htmlContent += `<span class="espacio-arriba"></span><div class="negrita">${linea}</div>`;
+            htmlContent += `<span class="espacio-arriba"></span><div class="negrita">${lineaProcesada}</div>`;
         }
         else {
-            htmlContent += `<div class="contenido-texto">${linea}</div>`;
+            htmlContent += `<div class="contenido-texto">${lineaProcesada}</div>`;
         }
     });
 
